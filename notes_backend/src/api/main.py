@@ -6,7 +6,7 @@ PUBLIC INTERFACES:
 - CRUD /notes          : create/list/get/update/delete notes
 
 Configuration (env vars):
-- REACT_APP_FRONTEND_URL (optional): if set, used as an allowed CORS origin.
+- FRONTEND_ORIGIN (optional): additional allowed CORS origin (e.g. http://localhost:3000).
 - NOTES_DATA_PATH (optional): path to JSON store for backend-local persistence.
 
 Error contract:
@@ -55,13 +55,27 @@ def _cors_origins_from_env() -> list[str]:
     """
     Determine allowed CORS origins.
 
-    We default to '*' for template friendliness, but if REACT_APP_FRONTEND_URL is provided,
-    we prefer that explicit origin (safer and more correct for credentialed requests).
+    For local preview we must allow the React dev server origin (http://localhost:3000).
+    Using allow_credentials=True forbids wildcard origins, so we always return explicit origins.
+
+    Env:
+    - FRONTEND_ORIGIN: optional, comma-separated list of additional origins.
+      Example: "http://localhost:3000,http://127.0.0.1:3000"
     """
-    fe = os.getenv("REACT_APP_FRONTEND_URL")
-    if fe:
-        return [fe]
-    return ["*"]
+    # Default local dev origins (frontend -> backend)
+    origins = {
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    }
+
+    extra = os.getenv("FRONTEND_ORIGIN", "").strip()
+    if extra:
+        for part in extra.split(","):
+            o = part.strip()
+            if o:
+                origins.add(o)
+
+    return sorted(origins)
 
 
 app.add_middleware(
